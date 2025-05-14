@@ -149,42 +149,51 @@
         }
         
         /* iOS fullscreen controls */
-        .ios-fullscreen-controls {
-            display: none;
+        #ios-fullscreen-controls {
+            display: none; /* Hidden by default */
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.8);
             padding: 15px;
-            border-radius: 20px;
+            border-radius: 8px;
             z-index: 10000;
             flex-direction: row;
             gap: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
-        .stream-container.ios-fullscreen + .ios-fullscreen-controls {
-            display: flex;
+        /* Show iOS controls when in fullscreen */
+        body.ios-fullscreen-active #ios-fullscreen-controls {
+            display: flex !important;
         }
 
         .fullscreen-btn {
-            background: none;
+            background-color: rgba(255, 255, 255, 0.2);
             border: none;
             color: white;
             cursor: pointer;
-            padding: 8px;
+            padding: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             -webkit-tap-highlight-color: transparent;
-            background-color: rgba(255, 255, 255, 0.2);
             border-radius: 4px;
+            min-width: 44px; /* Better touch target */
+            min-height: 44px; /* Better touch target */
         }
 
         .fullscreen-btn svg {
             width: 24px;
             height: 24px;
             fill: currentColor;
+        }
+        
+        /* Debugging outline */
+        #ios-fullscreen-controls * {
+            outline: 1px solid rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
@@ -217,7 +226,7 @@
     </div>
 
     <!-- iOS fullscreen controls that appear when in fullscreen mode -->
-    <div class="ios-fullscreen-controls" id="iosFullscreenControls">
+    <div id="ios-fullscreen-controls">
         <button class="quality-btn" data-quality="480p">480p</button>
         <button class="quality-btn active" data-quality="720p">720p</button>
         <button class="quality-btn" data-quality="1080p">1080p</button>
@@ -237,7 +246,7 @@
         const streamContainer = document.getElementById('streamContainer');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         const exitFullscreenBtn = document.getElementById('exitFullscreenBtn');
-        const iosFullscreenControls = document.getElementById('iosFullscreenControls');
+        const iosFullscreenControls = document.getElementById('ios-fullscreen-controls');
         let reconnectAttempts = 0;
         let statusCheckInterval;
         let currentQuality = '720p';
@@ -264,14 +273,33 @@
                 isIOSFullscreen = !isIOSFullscreen;
                 if (isIOSFullscreen) {
                     streamContainer.classList.add('ios-fullscreen');
+                    document.body.classList.add('ios-fullscreen-active');
                     document.body.style.overflow = 'hidden';
                     window.scrollTo(0, 0);
                     
+                    // Show iOS fullscreen controls
+                    console.log("Showing iOS fullscreen controls");
+                    
                     // Sync quality buttons in the iOS fullscreen controls
                     syncQualityButtons();
+                    
+                    // Force display for debugging
+                    iosFullscreenControls.style.display = 'flex';
+                    
+                    // Alert for debugging
+                    setTimeout(() => {
+                        console.log("iOS fullscreen controls display:", getComputedStyle(iosFullscreenControls).display);
+                        console.log("iOS fullscreen controls visibility:", getComputedStyle(iosFullscreenControls).visibility);
+                        console.log("iOS fullscreen controls z-index:", getComputedStyle(iosFullscreenControls).zIndex);
+                    }, 500);
                 } else {
                     streamContainer.classList.remove('ios-fullscreen');
+                    document.body.classList.remove('ios-fullscreen-active');
                     document.body.style.overflow = '';
+                    
+                    // Hide iOS fullscreen controls
+                    console.log("Hiding iOS fullscreen controls");
+                    iosFullscreenControls.style.display = 'none';
                 }
                 console.log("iOS fullscreen toggled:", isIOSFullscreen);
             } else {
@@ -433,6 +461,16 @@
             .catch(error => {
                 console.error("Error getting initial quality:", error);
             });
+            
+        // Force debug display of iOS fullscreen controls on document click (for testing)
+        if (isIOS) {
+            document.addEventListener('click', () => {
+                if (isIOSFullscreen) {
+                    console.log("Document clicked, ensuring iOS controls are visible");
+                    iosFullscreenControls.style.display = 'flex';
+                }
+            });
+        }
     </script>
 </body>
 </html> 
