@@ -18,9 +18,9 @@ error_message = None
 
 # Quality settings with optimized parameters
 quality_settings = {
-    '480p': {'scale': 0.33, 'jpeg_quality': 25},  # Reduced quality for better speed
-    '720p': {'scale': 0.50, 'jpeg_quality': 30},
-    '1080p': {'scale': 0.75, 'jpeg_quality': 35}
+    '480p': {'scale': 0.44, 'jpeg_quality': 25},  # 854x480
+    '720p': {'scale': 0.67, 'jpeg_quality': 30},  # 1280x720
+    '1080p': {'scale': 1.0, 'jpeg_quality': 35}   # 1920x1080 (native)
 }
 current_quality = '720p'
 quality_lock = threading.Lock()

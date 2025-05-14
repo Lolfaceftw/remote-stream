@@ -1,254 +1,222 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Screen Stream</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
             margin: 0;
-            padding: 0;
-            background-color: #1a1a1a;
-            color: white;
+            padding: 20px;
             font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
         }
         .container {
-            width: 100%;
-            max-width: 100vw;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 10px;
-            box-sizing: border-box;
+            position: relative;
         }
         .stream-container {
-            width: 100%;
             position: relative;
-            background-color: #2a2a2a;
+            width: 100%;
+            background: #000;
             border-radius: 8px;
             overflow: hidden;
-            min-height: 200px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        .video-stream {
+        .stream {
             width: 100%;
             height: auto;
             display: block;
         }
-        .header {
-            text-align: center;
-            padding: 10px 0;
-            margin-bottom: 15px;
-        }
         .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
-            gap: 10px;
-            margin: 10px 0;
-            flex-wrap: wrap;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
-        .quality-btn {
-            background-color: #333;
-            color: white;
+        .stream-container:hover .controls,
+        .stream-container.fullscreen .controls:hover {
+            opacity: 1;
+        }
+        .quality-controls {
+            display: flex;
+            gap: 10px;
+        }
+        .control-btn {
+            background: rgba(255,255,255,0.2);
             border: none;
-            padding: 8px 16px;
+            color: white;
+            padding: 8px 12px;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 14px;
             transition: background-color 0.3s;
         }
-        .quality-btn.active {
-            background-color: #4CAF50;
+        .control-btn:hover {
+            background: rgba(255,255,255,0.3);
         }
-        .quality-btn:hover {
-            background-color: #444;
+        .control-btn.active {
+            background: #007bff;
         }
-        .quality-btn.active:hover {
-            background-color: #45a049;
+        .fullscreen-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .fullscreen-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
         }
         .status {
-            text-align: center;
-            padding: 10px;
-            background-color: #333;
-            border-radius: 4px;
-            margin-top: 15px;
-            transition: background-color 0.3s;
-        }
-        .status.error {
-            background-color: #662222;
-        }
-        .status.connected {
-            background-color: #226622;
-        }
-        .loading {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-        }
-        .loading-spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .error-message {
-            color: #ff4444;
-            margin-top: 10px;
-            padding: 10px;
+            top: 15px;
+            right: 15px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.6);
             border-radius: 4px;
-            background-color: rgba(255, 0, 0, 0.1);
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
-        @media (orientation: landscape) {
-            .container {
-                padding: 0;
-            }
-            .header {
-                display: none;
-            }
-            .status:not(.error) {
-                display: none;
-            }
-            .stream-container {
-                border-radius: 0;
-            }
-            .controls {
-                position: fixed;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background-color: rgba(0, 0, 0, 0.5);
+        .stream-container:hover .status {
+            opacity: 1;
+        }
+        /* Fullscreen styles */
+        .stream-container.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            border-radius: 0;
+        }
+        .stream-container.fullscreen .stream {
+            height: 100vh;
+            object-fit: contain;
+        }
+        @media (max-width: 768px) {
+            body {
                 padding: 10px;
-                border-radius: 20px;
-                z-index: 1000;
+            }
+            .control-btn {
+                padding: 6px 10px;
+                font-size: 12px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Screen Stream</h1>
-        </div>
-        <div class="controls">
-            <button class="quality-btn" data-quality="480p">480p</button>
-            <button class="quality-btn active" data-quality="720p">720p</button>
-            <button class="quality-btn" data-quality="1080p">1080p</button>
-        </div>
-        <div class="stream-container">
-            <img src="{{ url_for('video_feed') }}" class="video-stream" alt="Screen Stream" style="display: none;">
-            <div class="loading">
-                <div class="loading-spinner"></div>
-                <div>Connecting to stream...</div>
-                <div class="error-message" style="display: none;"></div>
+        <div class="stream-container" id="streamContainer">
+            <img src="{{ url_for('video_feed') }}" class="stream" id="stream">
+            <div class="controls">
+                <div class="quality-controls">
+                    <button class="control-btn" data-quality="480p">480p</button>
+                    <button class="control-btn active" data-quality="720p">720p</button>
+                    <button class="control-btn" data-quality="1080p">1080p</button>
+                </div>
+                <button class="fullscreen-btn" id="fullscreenBtn" title="Toggle fullscreen">
+                    <svg viewBox="0 0 24 24" class="fullscreen-icon">
+                        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                    </svg>
+                </button>
             </div>
-        </div>
-        <div class="status">
-            <p>Connecting to stream...</p>
+            <div class="status" id="status"></div>
         </div>
     </div>
 
     <script>
-        const videoStream = document.querySelector('.video-stream');
-        const loading = document.querySelector('.loading');
-        const status = document.querySelector('.status');
-        const errorMessage = document.querySelector('.error-message');
-        const qualityButtons = document.querySelectorAll('.quality-btn');
-        let reconnectAttempts = 0;
-        let statusCheckInterval;
-        let currentQuality = '720p';
+        document.addEventListener('DOMContentLoaded', function() {
+            const qualityBtns = document.querySelectorAll('.control-btn');
+            const streamContainer = document.getElementById('streamContainer');
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            const statusElement = document.getElementById('status');
+            let currentQuality = '720p';
 
-        function updateStatus(message, isError = false) {
-            status.textContent = message;
-            status.className = 'status ' + (isError ? 'error' : 'connected');
-            if (isError) {
-                errorMessage.textContent = message;
-                errorMessage.style.display = 'block';
-            } else {
-                errorMessage.style.display = 'none';
-            }
-        }
-
-        function checkStreamStatus() {
-            fetch('/status')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'error') {
-                        updateStatus(data.message, true);
-                        reconnect();
-                    }
-                })
-                .catch(error => {
-                    updateStatus('Connection lost. Retrying...', true);
-                    reconnect();
+            // Quality control
+            qualityBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const quality = this.dataset.quality;
+                    fetch(`/set_quality/${quality}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                qualityBtns.forEach(b => b.classList.remove('active'));
+                                this.classList.add('active');
+                                currentQuality = quality;
+                            }
+                        });
                 });
-        }
-
-        function setQuality(quality) {
-            currentQuality = quality;
-            // Update active button
-            qualityButtons.forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.quality === quality);
             });
 
-            // Update stream with new quality
-            fetch(`/set_quality/${quality}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Reload the stream with the new quality
-                        videoStream.src = `${videoStream.src.split('?')[0]}?quality=${quality}&t=${Date.now()}`;
-                        updateStatus(`Quality set to ${quality}`);
-                    } else {
-                        updateStatus(`Failed to set quality: ${data.message}`, true);
-                    }
-                })
-                .catch(error => {
-                    updateStatus('Failed to set quality', true);
-                });
-        }
-
-        function reconnect() {
-            reconnectAttempts++;
-            if (reconnectAttempts <= 3) {
-                updateStatus(`Reconnecting... Attempt ${reconnectAttempts}/3`, true);
-                videoStream.src = `{{ url_for('video_feed') }}?quality=${currentQuality}&t=${Date.now()}`;
-            } else {
-                updateStatus('Stream connection failed. Please refresh the page.', true);
-                clearInterval(statusCheckInterval);
-            }
-        }
-
-        // Initialize quality buttons
-        qualityButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                setQuality(btn.dataset.quality);
+            // Fullscreen control
+            fullscreenBtn.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    streamContainer.requestFullscreen().catch(err => {
+                        console.log(`Error attempting to enable fullscreen: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
             });
+
+            // Update fullscreen button icon on fullscreen change
+            document.addEventListener('fullscreenchange', () => {
+                if (document.fullscreenElement) {
+                    streamContainer.classList.add('fullscreen');
+                    fullscreenBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24">
+                            <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+                        </svg>
+                    `;
+                } else {
+                    streamContainer.classList.remove('fullscreen');
+                    fullscreenBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24">
+                            <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                        </svg>
+                    `;
+                }
+            });
+
+            // Status monitoring
+            function updateStatus() {
+                fetch('/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'ok') {
+                            statusElement.textContent = `Latency: ${data.latency}ms | Quality: ${currentQuality}`;
+                            statusElement.style.color = '#4CAF50';
+                        } else {
+                            statusElement.textContent = data.message;
+                            statusElement.style.color = '#f44336';
+                        }
+                    })
+                    .catch(error => {
+                        statusElement.textContent = 'Connection error';
+                        statusElement.style.color = '#f44336';
+                    });
+            }
+
+            // Update status every second
+            setInterval(updateStatus, 1000);
+            updateStatus();
         });
-
-        videoStream.onload = function() {
-            videoStream.style.display = 'block';
-            loading.style.display = 'none';
-            updateStatus('Connected to stream');
-            reconnectAttempts = 0;
-        };
-
-        videoStream.onerror = function() {
-            videoStream.style.display = 'none';
-            loading.style.display = 'block';
-            reconnect();
-        };
-
-        // Start status checking
-        statusCheckInterval = setInterval(checkStreamStatus, 5000);
-
-        // Initial load
-        updateStatus('Connecting to stream...');
     </script>
 </body>
 </html> 
