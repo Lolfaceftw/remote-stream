@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, jsonify, request
 import cv2
 import numpy as np
 from mss import mss
@@ -15,9 +15,18 @@ frame_lock = threading.Lock()
 last_frame_time = time.time()
 error_message = None
 
+# Quality settings
+quality_settings = {
+    '480p': {'scale': 0.33, 'jpeg_quality': 30},  # 33% of original size
+    '720p': {'scale': 0.50, 'jpeg_quality': 35},  # 50% of original size
+    '1080p': {'scale': 0.75, 'jpeg_quality': 40}  # 75% of original size
+}
+current_quality = '720p'  # Default quality
+quality_lock = threading.Lock()  # Lock for thread-safe quality changes
+
 def capture_screen():
     """Continuously capture the screen and update the current frame."""
-    global current_frame, error_message, last_frame_time
+    global current_frame, error_message, last_frame_time, current_quality
     
     # Initialize screen capture
     sct = mss()
@@ -30,9 +39,12 @@ def capture_screen():
             # Convert to numpy array
             frame = np.array(screenshot)
             
-            # Resize frame to reduce bandwidth (adjust scale factor as needed)
-            scale_factor = 0.75  # Reduce to 75% of original size
-            frame = cv2.resize(frame, None, fx=scale_factor, fy=scale_factor)
+            # Get current quality settings thread-safely
+            with quality_lock:
+                scale = quality_settings[current_quality]['scale']
+            
+            # Resize frame according to current quality setting
+            frame = cv2.resize(frame, None, fx=scale, fy=scale)
             
             # Update the current frame thread-safely
             with frame_lock:
@@ -50,7 +62,7 @@ def capture_screen():
 
 def generate_frames():
     """Generate frames for the video stream."""
-    global last_frame_time, error_message
+    global last_frame_time, error_message, current_quality
     while True:
         try:
             # Check if frames are being captured
@@ -66,8 +78,12 @@ def generate_frames():
                     continue
                 frame = current_frame.copy()
             
-            # Encode the frame as JPEG with lower quality for better performance
-            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 40])
+            # Get current quality settings thread-safely
+            with quality_lock:
+                jpeg_quality = quality_settings[current_quality]['jpeg_quality']
+            
+            # Encode the frame as JPEG with quality based on current setting
+            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
             if not ret:
                 print("Error encoding frame", file=sys.stderr)
                 continue
@@ -101,6 +117,39 @@ def status():
     if time.time() - last_frame_time > 5:
         return {'status': 'error', 'message': 'No frames being captured'}
     return {'status': 'ok'}
+
+@app.route('/set_quality/<quality>')
+def set_quality(quality):
+    """Set the stream quality."""
+    global current_quality
+    
+    if quality not in quality_settings:
+        return jsonify({
+            'status': 'error',
+            'message': f'Invalid quality setting. Must be one of: {", ".join(quality_settings.keys())}'
+        }), 400
+    
+    # Update quality thread-safely
+    with quality_lock:
+        current_quality = quality
+    
+    return jsonify({
+        'status': 'success',
+        'message': f'Quality set to {quality}',
+        'quality': quality
+    })
+
+@app.route('/get_quality')
+def get_quality():
+    """Get current quality setting."""
+    global current_quality
+    with quality_lock:
+        quality = current_quality
+    return jsonify({
+        'status': 'success',
+        'quality': quality,
+        'available_qualities': list(quality_settings.keys())
+    })
 
 if __name__ == '__main__':
     # Start the screen capture thread
