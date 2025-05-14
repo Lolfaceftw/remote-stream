@@ -59,6 +59,7 @@
             cursor: pointer;
             font-size: 14px;
             transition: background-color 0.3s;
+            -webkit-tap-highlight-color: transparent;
         }
         .control-btn:hover {
             background: rgba(255,255,255,0.3);
@@ -75,6 +76,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            -webkit-tap-highlight-color: transparent;
         }
         .fullscreen-btn svg {
             width: 24px;
@@ -130,7 +132,7 @@
                     <button class="control-btn active" data-quality="720p">720p</button>
                     <button class="control-btn" data-quality="1080p">1080p</button>
                 </div>
-                <button class="fullscreen-btn" id="fullscreenBtn" title="Toggle fullscreen">
+                <button class="fullscreen-btn" id="fullscreenBtn" title="Toggle fullscreen" ontouchend="javascript:console.log('Inline ontouchend fired!'); alert('Inline ontouchend!');">
                     <svg viewBox="0 0 24 24" class="fullscreen-icon">
                         <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
                     </svg>
@@ -165,6 +167,13 @@
             });
 
             // Fullscreen control
+            function મોબાઇલ_ફુલસ્ક્રીન_ટેસ્ટ() {
+                console.log(" મોબાઇલ_ફુલસ્ક્રીન_ટેસ્ટ function called by tap/click.");
+                alert("મોબાઇલ_ફુલસ્ક્રીન_ટેસ્ટ function executed!");
+                
+                toggleFullscreen(); 
+            }
+
             function toggleFullscreen() {
                 console.log("Fullscreen toggle initiated");
                 if (!document.fullscreenElement) {
@@ -241,6 +250,11 @@
             // Update status every second
             setInterval(updateStatus, 1000);
             updateStatus();
+
+            // For extreme debugging, attach to window to see if *any* touchend is registered
+            window.addEventListener('touchend', function(event) {
+                console.log('Window touchend event:', event.target);
+            }, true); // Use capture phase
         });
     </script>
 </body>
