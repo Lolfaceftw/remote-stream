@@ -165,8 +165,8 @@
             });
 
             // Fullscreen control
-            fullscreenBtn.addEventListener('click', () => {
-                console.log("Fullscreen button clicked"); // Log button click
+            function toggleFullscreen() {
+                console.log("Fullscreen toggle initiated");
                 if (!document.fullscreenElement) {
                     console.log("Requesting fullscreen...");
                     streamContainer.requestFullscreen().then(() => {
@@ -184,6 +184,17 @@
                         alert(`Error exiting fullscreen: ${err.message}. Check browser console for details.`);
                     });
                 }
+            }
+
+            fullscreenBtn.addEventListener('click', () => {
+                console.log("Fullscreen button clicked (click event)");
+                toggleFullscreen();
+            });
+
+            fullscreenBtn.addEventListener('touchend', (event) => {
+                console.log("Fullscreen button touched (touchend event)");
+                event.preventDefault(); // Prevent firing click event as well on some devices
+                toggleFullscreen();
             });
 
             // Update fullscreen button icon on fullscreen change
