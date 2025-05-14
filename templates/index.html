@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Screen Stream</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         body {
             margin: 0;
@@ -128,6 +128,49 @@
                 z-index: 1000;
             }
         }
+        /* iOS fullscreen simulation */
+        .stream-container.ios-fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            background: #000;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .stream-container.ios-fullscreen .video-stream {
+            height: 100vh;
+            object-fit: contain;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Hide browser UI in iOS fullscreen */
+        .stream-container.ios-fullscreen .controls {
+            bottom: env(safe-area-inset-bottom);
+            padding-bottom: calc(15px + env(safe-area-inset-bottom));
+        }
+
+        .fullscreen-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .fullscreen-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
     </style>
 </head>
 <body>
@@ -139,8 +182,13 @@
             <button class="quality-btn" data-quality="480p">480p</button>
             <button class="quality-btn active" data-quality="720p">720p</button>
             <button class="quality-btn" data-quality="1080p">1080p</button>
+            <button class="fullscreen-btn" id="fullscreenBtn" title="Toggle fullscreen">
+                <svg viewBox="0 0 24 24">
+                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                </svg>
+            </button>
         </div>
-        <div class="stream-container">
+        <div class="stream-container" id="streamContainer">
             <img src="{{ url_for('video_feed') }}" class="video-stream" alt="Screen Stream" style="display: none;">
             <div class="loading">
                 <div class="loading-spinner"></div>
@@ -159,9 +207,91 @@
         const status = document.querySelector('.status');
         const errorMessage = document.querySelector('.error-message');
         const qualityButtons = document.querySelectorAll('.quality-btn');
+        const streamContainer = document.getElementById('streamContainer');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
         let reconnectAttempts = 0;
         let statusCheckInterval;
         let currentQuality = '720p';
+        
+        // Detect iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        let isIOSFullscreen = false;
+
+        // Fullscreen control
+        function toggleFullscreen() {
+            console.log("Fullscreen toggle initiated");
+            
+            if (isIOS) {
+                // iOS-specific fullscreen handling
+                isIOSFullscreen = !isIOSFullscreen;
+                if (isIOSFullscreen) {
+                    streamContainer.classList.add('ios-fullscreen');
+                    document.body.style.overflow = 'hidden';
+                    window.scrollTo(0, 0);
+                    
+                    // Update fullscreen button
+                    fullscreenBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24">
+                            <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+                        </svg>
+                    `;
+                } else {
+                    streamContainer.classList.remove('ios-fullscreen');
+                    document.body.style.overflow = '';
+                    
+                    // Restore fullscreen button
+                    fullscreenBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24">
+                            <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                        </svg>
+                    `;
+                }
+                console.log("iOS fullscreen toggled:", isIOSFullscreen);
+            } else {
+                // Standard fullscreen API for other platforms
+                if (!document.fullscreenElement) {
+                    console.log("Requesting fullscreen...");
+                    streamContainer.requestFullscreen().then(() => {
+                        console.log("Fullscreen entered successfully.");
+                    }).catch(err => {
+                        console.error(`Error attempting to enable fullscreen: ${err.message}`, err);
+                        alert(`Fullscreen Error: ${err.message}. Check browser console for details.`);
+                    });
+                } else {
+                    console.log("Exiting fullscreen...");
+                    document.exitFullscreen().then(() => {
+                        console.log("Fullscreen exited successfully.");
+                    }).catch(err => {
+                        console.error(`Error attempting to exit fullscreen: ${err.message}`, err);
+                        alert(`Error exiting fullscreen: ${err.message}. Check browser console for details.`);
+                    });
+                }
+            }
+        }
+
+        // Event listeners for fullscreen
+        fullscreenBtn.addEventListener('click', (event) => {
+            console.log("Fullscreen button clicked (click event)");
+            event.preventDefault();
+            toggleFullscreen();
+        });
+
+        fullscreenBtn.addEventListener('touchend', (event) => {
+            console.log("Fullscreen button touched (touchend event)");
+            event.preventDefault();
+            toggleFullscreen();
+        });
+
+        // Handle iOS orientation changes
+        if (isIOS) {
+            window.addEventListener('orientationchange', () => {
+                if (isIOSFullscreen) {
+                    window.scrollTo(0, 0);
+                }
+            });
+        }
 
         function updateStatus(message, isError = false) {
             status.textContent = message;
