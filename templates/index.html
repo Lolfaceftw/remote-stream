@@ -148,10 +148,23 @@
             padding: 0;
         }
         
-        /* Hide browser UI in iOS fullscreen */
-        .stream-container.ios-fullscreen .controls {
-            bottom: env(safe-area-inset-bottom);
-            padding-bottom: calc(15px + env(safe-area-inset-bottom));
+        /* iOS fullscreen controls */
+        .ios-fullscreen-controls {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 20px;
+            z-index: 10000;
+            flex-direction: row;
+            gap: 10px;
+        }
+        
+        .stream-container.ios-fullscreen + .ios-fullscreen-controls {
+            display: flex;
         }
 
         .fullscreen-btn {
@@ -164,6 +177,8 @@
             align-items: center;
             justify-content: center;
             -webkit-tap-highlight-color: transparent;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
         }
 
         .fullscreen-btn svg {
@@ -201,6 +216,18 @@
         </div>
     </div>
 
+    <!-- iOS fullscreen controls that appear when in fullscreen mode -->
+    <div class="ios-fullscreen-controls" id="iosFullscreenControls">
+        <button class="quality-btn" data-quality="480p">480p</button>
+        <button class="quality-btn active" data-quality="720p">720p</button>
+        <button class="quality-btn" data-quality="1080p">1080p</button>
+        <button class="fullscreen-btn" id="exitFullscreenBtn" title="Exit fullscreen">
+            <svg viewBox="0 0 24 24">
+                <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+            </svg>
+        </button>
+    </div>
+
     <script>
         const videoStream = document.querySelector('.video-stream');
         const loading = document.querySelector('.loading');
@@ -209,6 +236,8 @@
         const qualityButtons = document.querySelectorAll('.quality-btn');
         const streamContainer = document.getElementById('streamContainer');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const exitFullscreenBtn = document.getElementById('exitFullscreenBtn');
+        const iosFullscreenControls = document.getElementById('iosFullscreenControls');
         let reconnectAttempts = 0;
         let statusCheckInterval;
         let currentQuality = '720p';
@@ -218,6 +247,13 @@
                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         
         let isIOSFullscreen = false;
+
+        // Show video stream when it loads
+        videoStream.addEventListener('load', function() {
+            videoStream.style.display = 'block';
+            loading.style.display = 'none';
+            updateStatus('Connected');
+        });
 
         // Fullscreen control
         function toggleFullscreen() {
@@ -231,22 +267,11 @@
                     document.body.style.overflow = 'hidden';
                     window.scrollTo(0, 0);
                     
-                    // Update fullscreen button
-                    fullscreenBtn.innerHTML = `
-                        <svg viewBox="0 0 24 24">
-                            <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
-                        </svg>
-                    `;
+                    // Sync quality buttons in the iOS fullscreen controls
+                    syncQualityButtons();
                 } else {
                     streamContainer.classList.remove('ios-fullscreen');
                     document.body.style.overflow = '';
-                    
-                    // Restore fullscreen button
-                    fullscreenBtn.innerHTML = `
-                        <svg viewBox="0 0 24 24">
-                            <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-                        </svg>
-                    `;
                 }
                 console.log("iOS fullscreen toggled:", isIOSFullscreen);
             } else {
@@ -271,6 +296,14 @@
             }
         }
 
+        // Sync the active quality button between the main controls and iOS fullscreen controls
+        function syncQualityButtons() {
+            const allButtons = document.querySelectorAll('.quality-btn');
+            allButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.quality === currentQuality);
+            });
+        }
+
         // Event listeners for fullscreen
         fullscreenBtn.addEventListener('click', (event) => {
             console.log("Fullscreen button clicked (click event)");
@@ -280,6 +313,19 @@
 
         fullscreenBtn.addEventListener('touchend', (event) => {
             console.log("Fullscreen button touched (touchend event)");
+            event.preventDefault();
+            toggleFullscreen();
+        });
+
+        // Exit fullscreen button in iOS fullscreen controls
+        exitFullscreenBtn.addEventListener('click', (event) => {
+            console.log("Exit fullscreen button clicked");
+            event.preventDefault();
+            toggleFullscreen();
+        });
+
+        exitFullscreenBtn.addEventListener('touchend', (event) => {
+            console.log("Exit fullscreen button touched");
             event.preventDefault();
             toggleFullscreen();
         });
@@ -321,25 +367,30 @@
 
         function setQuality(quality) {
             currentQuality = quality;
-            // Update active button
-            qualityButtons.forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.quality === quality);
-            });
+            
+            // Update all quality buttons (both in main controls and fullscreen controls)
+            syncQualityButtons();
 
             // Update stream with new quality
+            updateStatus(`Setting quality to ${quality}...`);
             fetch(`/set_quality/${quality}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Server returned ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log("Quality response:", data);
                     if (data.status === 'success') {
-                        // Reload the stream with the new quality
-                        videoStream.src = `${videoStream.src.split('?')[0]}?quality=${quality}&t=${Date.now()}`;
                         updateStatus(`Quality set to ${quality}`);
                     } else {
                         updateStatus(`Failed to set quality: ${data.message}`, true);
                     }
                 })
                 .catch(error => {
-                    updateStatus('Failed to set quality', true);
+                    console.error("Quality setting error:", error);
+                    updateStatus(`Failed to set quality: ${error.message}`, true);
                 });
         }
 
@@ -347,38 +398,41 @@
             reconnectAttempts++;
             if (reconnectAttempts <= 3) {
                 updateStatus(`Reconnecting... Attempt ${reconnectAttempts}/3`, true);
-                videoStream.src = `{{ url_for('video_feed') }}?quality=${currentQuality}&t=${Date.now()}`;
+                videoStream.src = `{{ url_for('video_feed') }}?t=${Date.now()}`;
             } else {
                 updateStatus('Stream connection failed. Please refresh the page.', true);
                 clearInterval(statusCheckInterval);
             }
         }
 
-        // Initialize quality buttons
-        qualityButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
+        // Initialize all quality buttons
+        document.querySelectorAll('.quality-btn').forEach(btn => {
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                setQuality(btn.dataset.quality);
+            });
+            
+            btn.addEventListener('touchend', (event) => {
+                event.preventDefault();
                 setQuality(btn.dataset.quality);
             });
         });
 
-        videoStream.onload = function() {
-            videoStream.style.display = 'block';
-            loading.style.display = 'none';
-            updateStatus('Connected to stream');
-            reconnectAttempts = 0;
-        };
-
-        videoStream.onerror = function() {
-            videoStream.style.display = 'none';
-            loading.style.display = 'block';
-            reconnect();
-        };
-
-        // Start status checking
-        statusCheckInterval = setInterval(checkStreamStatus, 5000);
-
-        // Initial load
-        updateStatus('Connecting to stream...');
+        // Start status monitoring
+        statusCheckInterval = setInterval(checkStreamStatus, 3000);
+        
+        // Load initial quality from server
+        fetch('/get_quality')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    currentQuality = data.quality;
+                    syncQualityButtons();
+                }
+            })
+            .catch(error => {
+                console.error("Error getting initial quality:", error);
+            });
     </script>
 </body>
 </html> 
