@@ -1,0 +1,68 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+**Objective:** These are foundational operating principles. Apply them consistently to all tasks and interactions to ensure thoroughness, clarity, and a methodical approach.
+
+1.  **Comprehensive Thinking First: Always use sequential thinking mcp**
+    *   **Analyze Fully:** Before taking action (editing, writing code, answering), *always* pause to analyze the request and its context comprehensively.
+    *   **Consider Implications:** Think about the direct requirements, potential side effects, edge cases, and the overall goal the user is trying to achieve. Don't just look at the immediate line or function; consider its place in the larger project or document.
+    *   **Identify Dependencies:** Recognize if the request depends on other parts of the code, text, or previous instructions.
+
+2.  **Incremental Execution (Small Steps):**
+    *   **Break Down Changes:** When performing edits, refactoring, or implementing features, break the work down into the smallest logical, sequential steps possible.
+    *   **One Thing at a Time:** Focus on completing one small, distinct part of the task before moving to the next. For example, rename variables in one step, adjust logic in the next, add comments in a final step.
+    *   **Verify Each Step:** Aim for each small step to result in a valid (or demonstrably closer to the goal) state. This makes changes easier to understand, review, and revert if needed.
+
+3.  **Direct and Concise Answers:**
+    *   **Answer First:** When asked a direct question, provide the core answer clearly and upfront.
+    *   **Minimize Preamble:** Avoid lengthy introductions, excessive hedging ("it might be possible that...", "one could consider..."), or unnecessary background information unless it's critical for understanding the answer itself.
+    *   **Elaborate If Needed:** Provide necessary context, explanations, or alternatives *after* the direct answer has been given.
+
+4.  **Sequential Processing Logic:**
+    *   **Ordered Approach:** Plan and execute tasks in a logical, step-by-step sequence. Determine the necessary order of operations before starting.
+    *   **Follow the Plan:** Adhere to the determined sequence. Don't jump between unrelated parts of a task randomly.
+    *   **Show Your Work (If Complex):** For multi-step processes, it can be helpful to briefly outline the planned sequence first, then execute each step. This aligns with Rule #2 (Incremental Execution).
+
+5.  **Tool Invocation via Desktop Commander:**
+    *   **Mandatory Invocation:** When utilizing any of the predefined tools/functions listed below (derived from the provided image), they *must* be invoked using `desktop_commander_mcp`. This applies to the following tools, categorized as per their typical domain:
+        *   **Configuration:** `get_config`, `set_config_value`
+        *   **Terminal:** `execute_command`, `read_output`, `force_terminate`, `list_sessions`, `list_processes`, `kill_process`
+        *   **Filesystem:** `read_file`, `read_multiple_files`, `write_file`, `create_directory`, `list_directory`, `move_file`, `search_files`, `search_code`, `get_file_info`
+        *   **Text Editing:** `edit_block`
+    *   **Example:** If the task requires reading a file, the execution thought process should be: "Need to use `read_file`. Rule 5 dictates `desktop_commander_mcp` for this. Therefore, the action is `desktop_commander_mcp read_file ...` (with appropriate arguments for `read_file`)."
+    *   **Relationship to Command Execution:** If the tool invoked via `desktop_commander_mcp` itself involves executing a command-line operation (e.g., `execute_command`), then the rules for command-line operations (see Rule 6: PowerShell Standard, semicolon chaining) apply to the *command string* passed to that tool.
+
+6.  **Command Execution Protocol:**
+    *   **PowerShell Standard:** When generating, instructing, or executing command-line operations (including those passed to tools via `desktop_commander_mcp` as per Rule 5), PowerShell must be the designated shell.
+    *   **Sequential Chaining with Semicolon:** To chain multiple PowerShell commands for sequential execution on a single line, use a semicolon (`;`). The `&&` operator (and similar conditional/chaining operators from other shells) must not be used for this purpose; only use semicolons for chaining PowerShell commands.
+
+7.  **Error Handling and Documentation Search (PowerShell):**
+    *   **Identify PowerShell Errors:** If an error occurs during the execution of PowerShell commands (as per Rule 6), acknowledge and clearly state the error.
+    *   **Mandatory Documentation Search:** You *must* then use `firecrawl mcp` to search for documentation related to the specific error message or the problematic command/syntax.
+    *   **Targeted Search Resource:** The primary search resource for this purpose is the official Microsoft PowerShell documentation: `https://learn.microsoft.com/en-us/powershell/`.
+    *   **Report and Propose:** Report the findings from the documentation search. Based on the information retrieved, explain the likely cause of the error and, if possible, propose a corrected command or solution. If a direct solution isn't apparent from the search, explain what was found and why it might be happening.
+
+8.  **Version Control (`github_mcp` Process):**
+    *   **Mandatory GitHub Usage:** All code changes, file modifications, and new file writes must be version controlled using Git and pushed to a GitHub repository. This is the `github_mcp` operational model.
+    *   **Repository Check & Setup:**
+        *   Before any version-controlled action, verify if a local Git repository is initialized and a GitHub remote (e.g., `origin`) is configured.
+        *   If no Git repository is initialized or a GitHub remote is not configured, you *must prompt the user for the name of the GitHub repository to be made/used*. For instance: "To manage changes with version control, I need a GitHub repository. What name should be used for the repository for this project?" The AI should then await user confirmation of setup or further instructions.
+    *   **Granular Branching for Each Change:**
+        *   For *every distinct change, modification, or file write operation* that constitutes an incremental step (as per Rule 2), a new branch *must* be created from the main/default branch (or the current working branch if specified by a more complex workflow, though default to main/default).
+        *   **Branch Naming Convention:** Branches must be named with a consistent prefix and an incrementing version number that the AI tracks (e.g., `cursor-change-v1`, `cursor-change-v2`, `cursor-change-vN`).
+    *   **Atomic Commit and Push:**
+        *   After the change is made on this new branch, it *must* be committed with a clear, concise message describing the specific operation.
+        *   The new branch with its commit(s) *must* be automatically pushed to the GitHub remote repository. For example: `git push -u origin cursor-change-vN`.
+    *   **Git Command Execution:** All Git commands (e.g., `git branch`, `git checkout`, `git add`, `git commit`, `git push`, `git status`, `git remote -v`) must be executed via `desktop_commander_mcp execute_command "git ..."`. These commands must adhere to Rule 6 (PowerShell Standard, semicolon chaining for multiple git commands in one `execute_command` call).
+        *   Example sequence for a change:
+            1.  `desktop_commander_mcp execute_command "git checkout main; git pull"` (Ensure main is up-to-date, optional but good practice)
+            2.  `desktop_commander_mcp execute_command "git checkout -b cursor-change-vN"`
+            3.  *(Perform file modification/write using appropriate tools)*
+            4.  `desktop_commander_mcp execute_command "git add <changed_file_path>; git commit -m 'Description of change for vN'"`
+            5.  `desktop_commander_mcp execute_command "git push -u origin cursor-change-vN"`
+    *   **No Direct Commits to Primary Branches:** Avoid committing directly to `main`, `master`, or other designated primary/long-lived branches. All work should occur in the granularly created, versioned branches.
+
+
+**Summary:** Think deeply and broadly first. Then, act carefully in small, ordered steps. Communicate clearly and directly. Follow a logical sequence throughout. Invoke specified tools using `desktop_commander_mcp`. When executing commands (potentially within tools), use PowerShell and specified chaining. If PowerShell errors occur, actively seek solutions using `firecrawl mcp` on Microsoft's documentation. Implement `github_mcp` by using Git for all changes, creating a new versioned branch for each modification, pushing it to GitHub, and prompting for repository setup if needed.
