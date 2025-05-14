@@ -11,6 +11,7 @@
             background-color: #1a1a1a;
             color: white;
             font-family: Arial, sans-serif;
+            position: relative; /* Add this for proper z-index stacking */
         }
         .container {
             width: 100%;
@@ -136,7 +137,7 @@
             width: 100vw;
             height: 100vh;
             z-index: 9999;
-            background: #000;
+            background: transparent; /* Changed from black to transparent to show the background */
             margin: 0;
             padding: 0;
         }
@@ -148,11 +149,11 @@
             padding: 0;
             position: relative;
             z-index: 2;
+            background-color: transparent; /* Added to ensure transparency */
         }
         
         /* Ambient background effect */
-        .ambient-background {
-            display: none;
+        #ambientBackground {
             position: fixed;
             top: 0;
             left: 0;
@@ -163,10 +164,13 @@
             filter: blur(30px) brightness(0.5);
             object-fit: cover;
             opacity: 0.7;
+            pointer-events: none;
+            display: none;
         }
         
-        body.ios-fullscreen-active .ambient-background {
-            display: block;
+        /* Explicitly show ambient background when body has this class */
+        body.ios-fullscreen-active #ambientBackground {
+            display: block !important;
         }
         
         /* iOS fullscreen controls */
@@ -211,9 +215,31 @@
             height: 24px;
             fill: currentColor;
         }
+        
+        /* Debug helper */
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            z-index: 10001;
+            max-width: 300px;
+            word-break: break-all;
+            display: none;
+        }
+        
+        body.ios-fullscreen-active .debug-info {
+            display: block;
+        }
     </style>
 </head>
 <body>
+    <!-- Debug info -->
+    <div class="debug-info" id="debugInfo">Debug info will appear here</div>
+
     <div class="container">
         <div class="header">
             <h1>Screen Stream</h1>
@@ -242,7 +268,7 @@
     </div>
 
     <!-- Ambient background for fullscreen mode -->
-    <img class="ambient-background" id="ambientBackground" alt="">
+    <img id="ambientBackground" alt="Ambient Background">
 
     <!-- iOS fullscreen controls that appear when in fullscreen mode -->
     <div id="ios-fullscreen-controls">
@@ -267,8 +293,10 @@
         const exitFullscreenBtn = document.getElementById('exitFullscreenBtn');
         const iosFullscreenControls = document.getElementById('ios-fullscreen-controls');
         const ambientBackground = document.getElementById('ambientBackground');
+        const debugInfo = document.getElementById('debugInfo');
         let reconnectAttempts = 0;
         let statusCheckInterval;
+        let ambientUpdateInterval;
         let currentQuality = '720p';
         
         // Detect iOS
@@ -277,99 +305,127 @@
         
         let isIOSFullscreen = false;
 
+        // Debug function
+        function updateDebugInfo(info) {
+            if (debugInfo) {
+                const now = new Date();
+                const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+                debugInfo.innerHTML = `${timestamp}: ${info}<br>` + debugInfo.innerHTML.slice(0, 500);
+            }
+        }
+
         // Show video stream when it loads
         videoStream.addEventListener('load', function() {
             videoStream.style.display = 'block';
             loading.style.display = 'none';
             updateStatus('Connected');
             
-            // Set ambient background source from the main stream
-            ambientBackground.src = videoStream.src;
+            updateDebugInfo(`Stream loaded. Initializing ambient background.`);
+            // Call updateAmbientBackground to use the canvas method for the first frame.
+            updateAmbientBackground();
         });
 
         // Update ambient background periodically to match current frame
         function updateAmbientBackground() {
-            if (isIOSFullscreen && videoStream.complete) {
-                // Capture current frame to canvas and use it for background
-                try {
-                    // Create a canvas to draw the current frame
+            try {
+                updateDebugInfo("Updating ambient background using canvas method");
+                
+                // Always try canvas method if video stream is ready
+                if (videoStream.complete && (videoStream.naturalWidth || videoStream.width)) {
+                    updateDebugInfo(`Canvas attempt. naturalWidth: ${videoStream.naturalWidth}, width: ${videoStream.width}`);
+                    
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
+                    
                     canvas.width = videoStream.naturalWidth || videoStream.width;
                     canvas.height = videoStream.naturalHeight || videoStream.height;
                     
-                    // Draw the current frame to canvas
                     ctx.drawImage(videoStream, 0, 0, canvas.width, canvas.height);
                     
-                    // Update ambient background with current frame
-                    ambientBackground.src = canvas.toDataURL('image/jpeg', 0.5);
-                } catch (e) {
-                    console.error("Error updating ambient background:", e);
-                    // Fallback to copying the source directly
-                    ambientBackground.src = videoStream.src;
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+                    ambientBackground.src = dataUrl;
+                    updateDebugInfo(`Ambient background updated with canvas: ${dataUrl.slice(0, 40)}...`);
+
+                    // Ensure it's displayed if it was previously none and should be visible
+                    if (document.body.classList.contains('ios-fullscreen-active') && getComputedStyle(ambientBackground).display === 'none') {
+                        ambientBackground.style.display = 'block'; // Should be handled by CSS, but as a safeguard
+                        updateDebugInfo("Forced ambient background display to block as it was none and body has ios-fullscreen-active.");
+                    }
+                } else {
+                    updateDebugInfo("Video stream not complete or has no dimensions for canvas method.");
+                    // Consider clearing ambientBackground.src or setting a placeholder if desired
+                    // ambientBackground.src = ''; 
                 }
+            } catch (e) {
+                updateDebugInfo(`Error in updateAmbientBackground: ${e.message}`);
+                // Consider clearing ambientBackground.src or setting a placeholder
+                // ambientBackground.src = ''; 
             }
         }
 
         // Fullscreen control
         function toggleFullscreen() {
-            console.log("Fullscreen toggle initiated");
+            updateDebugInfo("Fullscreen toggle initiated");
             
             if (isIOS) {
-                // iOS-specific fullscreen handling
                 isIOSFullscreen = !isIOSFullscreen;
                 if (isIOSFullscreen) {
                     streamContainer.classList.add('ios-fullscreen');
-                    document.body.classList.add('ios-fullscreen-active');
+                    document.body.classList.add('ios-fullscreen-active'); // This class makes ambientBackground display: block !important
                     document.body.style.overflow = 'hidden';
                     window.scrollTo(0, 0);
                     
-                    // Initialize ambient background
-                    ambientBackground.src = videoStream.src;
+                    updateDebugInfo("Initializing ambient background for iOS fullscreen");
+                    updateAmbientBackground(); // Initial update using canvas
                     
-                    // Show iOS fullscreen controls
-                    console.log("Showing iOS fullscreen controls");
-                    
-                    // Sync quality buttons in the iOS fullscreen controls
                     syncQualityButtons();
                     
-                    // Start ambient background update
+                    if (ambientUpdateInterval) clearInterval(ambientUpdateInterval);
                     ambientUpdateInterval = setInterval(updateAmbientBackground, 2000);
+                    
+                    setTimeout(updateAmbientBackground, 100); // Extra update soon after transition
+                    
                 } else {
                     streamContainer.classList.remove('ios-fullscreen');
-                    document.body.classList.remove('ios-fullscreen-active');
+                    document.body.classList.remove('ios-fullscreen-active'); // This class hides ambientBackground
                     document.body.style.overflow = '';
                     
-                    // Stop ambient background update
-                    clearInterval(ambientUpdateInterval);
-                    
-                    // Hide iOS fullscreen controls
-                    console.log("Hiding iOS fullscreen controls");
+                    if (ambientUpdateInterval) {
+                        clearInterval(ambientUpdateInterval);
+                        ambientUpdateInterval = null;
+                    }
+                    // ambientBackground.style.display = 'none'; // CSS handles this
+                    updateDebugInfo("Exited iOS fullscreen");
                 }
-                console.log("iOS fullscreen toggled:", isIOSFullscreen);
+                updateDebugInfo(`iOS fullscreen toggled: ${isIOSFullscreen}`);
             } else {
                 // Standard fullscreen API for other platforms
                 if (!document.fullscreenElement) {
-                    console.log("Requesting fullscreen...");
+                    updateDebugInfo("Requesting standard fullscreen");
                     streamContainer.requestFullscreen().then(() => {
-                        console.log("Fullscreen entered successfully.");
-                        // Initialize ambient background for non-iOS fullscreen too
-                        ambientBackground.src = videoStream.src;
-                        document.body.classList.add('ios-fullscreen-active');
+                        updateDebugInfo("Fullscreen entered successfully");
+                        document.body.classList.add('ios-fullscreen-active'); // Show ambient
+                        updateAmbientBackground(); // Initial update
+                        if (ambientUpdateInterval) clearInterval(ambientUpdateInterval);
                         ambientUpdateInterval = setInterval(updateAmbientBackground, 2000);
+                        setTimeout(updateAmbientBackground, 100); // Extra update
                     }).catch(err => {
+                        updateDebugInfo(`Fullscreen error: ${err.message}`);
                         console.error(`Error attempting to enable fullscreen: ${err.message}`, err);
-                        alert(`Fullscreen Error: ${err.message}. Check browser console for details.`);
                     });
                 } else {
-                    console.log("Exiting fullscreen...");
+                    updateDebugInfo("Exiting standard fullscreen");
                     document.exitFullscreen().then(() => {
-                        console.log("Fullscreen exited successfully.");
-                        document.body.classList.remove('ios-fullscreen-active');
-                        clearInterval(ambientUpdateInterval);
+                        updateDebugInfo("Fullscreen exited successfully");
+                        document.body.classList.remove('ios-fullscreen-active'); // Hide ambient
+                        // ambientBackground.style.display = 'none'; // CSS handles
+                        if (ambientUpdateInterval) {
+                            clearInterval(ambientUpdateInterval);
+                            ambientUpdateInterval = null;
+                        }
                     }).catch(err => {
+                        updateDebugInfo(`Exit fullscreen error: ${err.message}`);
                         console.error(`Error attempting to exit fullscreen: ${err.message}`, err);
-                        alert(`Error exiting fullscreen: ${err.message}. Check browser console for details.`);
                     });
                 }
             }
@@ -385,26 +441,22 @@
 
         // Event listeners for fullscreen
         fullscreenBtn.addEventListener('click', (event) => {
-            console.log("Fullscreen button clicked (click event)");
             event.preventDefault();
             toggleFullscreen();
         });
 
         fullscreenBtn.addEventListener('touchend', (event) => {
-            console.log("Fullscreen button touched (touchend event)");
             event.preventDefault();
             toggleFullscreen();
         });
 
         // Exit fullscreen button in iOS fullscreen controls
         exitFullscreenBtn.addEventListener('click', (event) => {
-            console.log("Exit fullscreen button clicked");
             event.preventDefault();
             toggleFullscreen();
         });
 
         exitFullscreenBtn.addEventListener('touchend', (event) => {
-            console.log("Exit fullscreen button touched");
             event.preventDefault();
             toggleFullscreen();
         });
@@ -460,7 +512,6 @@
                     return response.json();
                 })
                 .then(data => {
-                    console.log("Quality response:", data);
                     if (data.status === 'success') {
                         updateStatus(`Quality set to ${quality}`);
                     } else {
@@ -512,6 +563,15 @@
             .catch(error => {
                 console.error("Error getting initial quality:", error);
             });
+            
+        // Manual force update for ambient background
+        document.addEventListener('click', () => {
+            if (isIOSFullscreen) {
+                updateDebugInfo("Document clicked, forcing ambient background update");
+                updateAmbientBackground();
+                ambientBackground.style.display = 'block';
+            }
+        });
     </script>
 </body>
 </html> 
